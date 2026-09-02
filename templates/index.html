@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Road Accident Severity Predictor</title>
+  <!-- Modern Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet & Socket.IO -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.1/socket.io.js"></script>
+  <script>
+    // Configure Chart.js for dark theme out of the box
+    Chart.defaults.color = "rgba(255, 255, 255, 0.7)";
+    Chart.defaults.borderColor = "rgba(255, 255, 255, 0.1)";
+    // Add font family to match UI
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+  </script>
+</head>
+
+<body>
+  <div class="container-fluid py-4 px-lg-5">
+    <!-- Header -->
+    <header class="text-center mb-5">
+      <h1 class="display-5 header-title mb-2" style="font-weight: 700;">
+        <i class="fa-solid fa-car-burst me-2 text-primary"></i>
+        AI Road Accident Severity Predictor
+      </h1>
+      <p class="lead text-muted">Advanced machine learning model for real-time risk assessment and proactive road safety
+      </p>
+    </header>
+
+    <div class="row g-4 mb-4">
+      <!-- Left Column: Input Panel -->
+      <div class="col-lg-4 col-md-5">
+        <div class="glass-panel p-4 mb-4">
+          <h5 class="mb-4 text-white"><i class="fa-solid fa-sliders me-2 text-primary"></i> Assessment Parameters</h5>
+          <form id="input-form">
+            <!-- Grid for quick inputs -->
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label"><i class="fa-solid fa-gauge-high me-1"></i> Speed (km/h)</label>
+                <input type="number" class="form-control" id="speed" value="60">
+              </div>
+              <div class="col-6">
+                <label class="form-label"><i class="fa-solid fa-road me-1"></i> Road Type</label>
+                <select id="road_type" class="form-select">
+                  <option>City</option>
+                  <option>Highway</option>
+                  <option>Village</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label"><i class="fa-solid fa-car me-1"></i> Vehicle</label>
+                <select id="vehicle_type" class="form-select">
+                  <option>Car</option>
+                  <option>Bike</option>
+                  <option>Truck</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label"><i class="fa-solid fa-layer-group me-1"></i> Surface</label>
+                <select id="surface" class="form-select">
+                  <option>Dry</option>
+                  <option>Wet</option>
+                  <option>Slippery</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label"><i class="fa-regular fa-clock me-1"></i> Time of Day</label>
+              <select id="time_of_day" name="time_of_day" class="form-select" required>
+                <option value="">Select Time</option>
+                <option value="Morning">Morning</option>
+                <option value="Evening">Evening</option>
+                <option value="Night">Night</option>
+              </select>
+            </div>
+
+            <!-- Weather Section -->
+            <div class="p-3 mb-3 rounded"
+              style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
+              <label class="form-label text-white"><i class="fa-solid fa-cloud-sun me-1"></i> Weather
+                Configuration</label>
+              <div class="d-flex gap-3 mb-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="weather_mode" id="manual_mode" value="manual"
+                    checked>
+                  <label class="form-check-label text-muted" for="manual_mode">Manual</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="weather_mode" id="auto_mode" value="auto">
+                  <label class="form-check-label text-muted" for="auto_mode">Auto-Detect</label>
+                </div>
+              </div>
+
+              <div id="city-group" style="display:none;" class="mt-2">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="city_name" placeholder="City Name (e.g., Erode)">
+                  <button type="button" id="detect-weather" class="btn btn-outline-primary"><i
+                      class="fa-solid fa-location-crosshairs"></i></button>
+                </div>
+              </div>
+
+              <div id="manual-weather-group" class="mt-2">
+                <select id="manual_weather" class="form-select">
+                  <option>Sunny</option>
+                  <option>Rainy</option>
+                  <option>Foggy</option>
+                  <option>Cloudy</option>
+                  <option>Thunderstorm</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-check form-switch mb-4">
+              <input class="form-check-input" type="checkbox" id="mute_alert">
+              <label class="form-check-label text-muted" for="mute_alert">System Voice Alerts</label>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="button" id="predict-btn" class="btn btn-primary btn-lg"><i
+                  class="fa-solid fa-microchip me-2"></i> Analyze Risk Probability</button>
+              <button type="button" id="download-last" class="btn btn-outline-secondary btn-sm mt-1 py-2"><i
+                  class="fa-solid fa-download me-1"></i> Export Assessment</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- History -->
+        <div class="glass-panel p-4">
+          <h6 class="text-white mb-3"><i class="fa-solid fa-list-ul me-2 text-primary"></i> Scan History Logs</h6>
+          <ul id="last-preds" class="list-group list-group-flush small" style="max-height: 180px; overflow-y: auto;">
+          </ul>
+        </div>
+      </div>
+
+      <!-- Right Column: Results & Dashboard -->
+      <div class="col-lg-8 col-md-7">
+        <div class="row g-4 mb-4">
+          <!-- Output Panel -->
+          <div class="col-12">
+            <div class="glass-panel p-4 h-100" style="position: relative; overflow: hidden;">
+              <!-- Decorative blurred shape -->
+              <div
+                style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--accent-primary); filter:blur(80px); opacity:0.3; border-radius:50%; pointer-events:none;">
+              </div>
+
+              <h4 class="mb-4 text-white"><i class="fa-solid fa-chart-line me-2 text-primary"></i> Severity Diagnostics
+              </h4>
+
+              <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-end mb-2">
+                  <label class="text-muted m-0"><i class="fa-solid fa-percent me-1"></i> Probability
+                    Distribution</label>
+                  <span id="severity-badge" class="badge bg-success px-3 py-2 fs-6">Awaiting Input</span>
+                </div>
+                <div class="progress">
+                  <div id="severity-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                    role="progressbar" style="width:0%">0%</div>
+                </div>
+              </div>
+
+              <div id="predictionAlert" class="alert mt-3 text-center fw-medium"
+                style="display:none; transition: all 0.3s ease;"></div>
+
+              <div class="row g-3">
+                <div class="col-md-7">
+                  <label class="text-muted d-block mb-1"><i class="fa-solid fa-shield-halved me-1"></i> AI Strategic
+                    Advisory</label>
+                  <div id="advice-box" class="p-3 shadow-sm h-100 d-flex align-items-center"><span
+                      class="text-muted">Awaiting parameters to generate advice...</span></div>
+                </div>
+                <div class="col-md-5">
+                  <label class="text-muted d-block mb-1"><i class="fa-solid fa-cloud-bolt me-1"></i> Environmental
+                    Context</label>
+                  <div class="p-3 shadow-sm h-100"
+                    style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                    <div id="detected-weather" class="h4 text-white mb-0 mt-1">-</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SHAP Explainability -->
+              <div class="row g-3 mt-1">
+                <div class="col-12">
+                  <label class="text-muted d-block mb-1"><i class="fa-solid fa-brain me-1 text-info"></i> Machine
+                    Explainability (XAI)</label>
+                  <div id="shap-box" class="p-2 shadow-sm small text-info"
+                    style="background: rgba(0,0,0,0.3); border-radius: 6px;">Model standby...</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Map -->
+        <div class="row g-4 mb-4">
+          <div class="col-12">
+            <div class="glass-panel p-4 h-100">
+              <h6 class="text-white mb-3"><i class="fa-solid fa-map-location-dot me-2 text-primary"></i> Live Geospatial
+                Telemetry Tracker</h6>
+              <div id="riskMap" style="height: 350px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboards -->
+        <div class="row g-4 mb-4">
+          <div class="col-lg-6">
+            <div class="glass-panel p-4 h-100">
+              <h6 class="text-white mb-3"><i class="fa-solid fa-temperature-empty me-2 text-primary"></i> Weather vs
+                Severity</h6>
+              <div class="chart-card">
+                <canvas id="weatherChart" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="glass-panel p-4 h-100">
+              <h6 class="text-white mb-3"><i class="fa-solid fa-gauge me-2 text-primary"></i> Speed Correlations</h6>
+              <div class="chart-card">
+                <canvas id="speedChart" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4 mt-1">
+          <div class="col-lg-12">
+            <div class="glass-panel p-4">
+              <h6 class="text-white mb-3"><i class="fa-solid fa-calendar-days me-2 text-primary"></i> Aggregate Seasonal
+                Trends (Jan - Jun)</h6>
+              <div class="chart-card">
+                <canvas id="monthlyChart" height="60"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Technical Details -->
+        <div class="glass-panel p-4 mt-4">
+          <h5 class="text-white mb-4"><i class="fa-solid fa-server me-2 text-primary"></i> Architecture Diagnostics</h5>
+
+          <div class="row g-4">
+            <div class="col-md-7">
+              <table class="table table-hover table-borderless bg-transparent text-center align-middle m-0">
+                <thead class="text-muted" style="border-bottom: 1px solid rgba(255,255,255,0.1)">
+                  <tr>
+                    <th>Algorithm Engine</th>
+                    <th>Precision</th>
+                    <th>Confusion Matrix</th>
+                  </tr>
+                </thead>
+                <tbody id="modelPerfBody">
+                  <tr>
+                    <td class="text-white text-start"><i class="fa-solid fa-code-branch text-primary me-2"></i> Decision
+                      Tree</td>
+                    <td id="dt-acc" class="fw-bold text-success">-</td>
+                    <td>
+                      <div class="d-inline-block p-1 rounded" style="background: rgba(255,255,255,0.05);">
+                        <img id="cm-dt" src="/static/images/confusion_matrix_dt.png" class="rounded"
+                          style="max-width:80px; transition: transform 0.3s;"
+                          onmouseover="this.style.transform='scale(2)'; this.style.zIndex='10'; this.style.position='relative';"
+                          onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1'; this.style.position='static';" />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="text-white text-start"><i class="fa-solid fa-tree text-success me-2"></i> Random Forest
+                    </td>
+                    <td id="rf-acc" class="fw-bold text-success">-</td>
+                    <td>
+                      <div class="d-inline-block p-1 rounded" style="background: rgba(255,255,255,0.05);">
+                        <img id="cm-rf" src="/static/images/confusion_matrix_rf.png" class="rounded"
+                          style="max-width:80px; transition: transform 0.3s;"
+                          onmouseover="this.style.transform='scale(2)'; this.style.zIndex='10'; this.style.position='relative';"
+                          onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1'; this.style.position='static';" />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="col-md-5 border-start border-secondary ps-4"
+              style="border-color: rgba(255,255,255,0.1) !important;">
+              <h6 class="text-muted mb-3"><i class="fa-solid fa-chart-pie me-1"></i> Key Performance Indicators</h6>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-white">R² Correlation:</span>
+                <span class="badge bg-primary rounded-pill">{{ model_perf.get('r2', 'N/A') }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-white">Mean Sq. Error:</span>
+                <span class="badge bg-secondary rounded-pill">{{ model_perf.get('mse', 'N/A') }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-3">
+                <span class="text-white">Categorical Acc:</span>
+                <span class="badge bg-success rounded-pill">{{ model_perf.get('accuracy_cat', 'N/A') }}</span>
+              </div>
+
+              <h6 class="text-muted mb-2 mt-4"><i class="fa-solid fa-lightbulb me-1 text-warning"></i> Operational
+                Insights</h6>
+              <ul id="dashboard-highlights" class="list-group list-group-flush small bg-transparent"></ul>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Alert Box hidden container -->
+    <div id="alertBox" class="alert-box"><i class="fa-solid fa-triangle-exclamation me-2"></i> <span
+        id="alertBoxText"></span></div>
+
+    <footer class="mt-5 mb-3 text-center" style="opacity: 0.7;">
+      <small class="text-white"><i class="fa-solid fa-shield-virus text-success me-1"></i> Predictive architecture
+        powered by ensemble machine learning • Real-time telemetry</small>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/main.js"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+  <!-- Minor JS override for Alert Box Text inline -->
+  <script>
+    // We wrap the alert message since we added an icon to the container in HTML
+    const oldShowAlert = window.showAlert;
+    window.showAlert = function (message, level) {
+      const alertBox = document.getElementById('alertBox');
+      if (!alertBox) return;
+      alertBox.className = `alert-box show ${level}`;
+      // keep the icon and set message
+      alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${message}`;
+      setTimeout(() => { alertBox.classList.remove('show'); }, 5000);
+    };
+  </script>
+</body>
+
+</html>

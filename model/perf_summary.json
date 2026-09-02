@@ -1,0 +1,10 @@
+{
+  "decision_tree": {
+    "accuracy": 0.6666666666666666,
+    "cm": "static/images/confusion_matrix_dt.png"
+  },
+  "random_forest": {
+    "accuracy": 0.75,
+    "cm": "static/images/confusion_matrix_rf.png"
+  }
+}
